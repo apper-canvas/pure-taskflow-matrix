@@ -334,8 +334,9 @@ const MainFeature = ({ activeTab }) => {
                 <input
                   type="text"
                   value={tags}
-                  onChange={handleInputChange}
-                  className="input min-h-[80px]"
+                  name="tags"
+                  onChange={(e) => setTags(e.target.value)}
+                  className="input"
                   placeholder="Enter task description"
                 />
               </div>
@@ -430,7 +431,7 @@ const MainFeature = ({ activeTab }) => {
                 <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
                 <p className="mt-3 text-surface-600 dark:text-surface-400">Loading tasks...</p>
               </motion.div>
-            )}
+            ) : null}
           </AnimatePresence>
         </div>
       ) : error ? (
@@ -561,7 +562,7 @@ const MainFeature = ({ activeTab }) => {
               </motion.div>
             ))
             )}
-          )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
