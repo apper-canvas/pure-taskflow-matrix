@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'react-toastify'; 
+import { toast } from 'react-toastify';
 import { format, parseISO } from 'date-fns';
 import { getIcon } from '../utils/iconUtils';
 import { fetchTasks, createTask, updateTask, deleteTask } from '../services/taskService';
@@ -15,6 +15,7 @@ const AlertCircleIcon = getIcon('alert-circle');
 const ChevronDownIcon = getIcon('chevron-down');
 const ChevronUpIcon = getIcon('chevron-up');
 const FlagIcon = getIcon('flag');
+const ListTodoIcon = getIcon('list-todo');
 
 const MainFeature = ({ activeTab }) => {
   // State management
@@ -80,7 +81,7 @@ const MainFeature = ({ activeTab }) => {
     };
     
     fetchTasksFromServer();
-  }, [tasks]);
+  }, [activeTab]);
 
   // Handle input changes for the task form
   const handleInputChange = (e) => {
@@ -92,7 +93,7 @@ const MainFeature = ({ activeTab }) => {
   };
 
   // Add a new task or update an existing one
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     setSubmitting(true);
     e.preventDefault();
     
@@ -173,8 +174,8 @@ const MainFeature = ({ activeTab }) => {
       toast.error(editingTask ? "Failed to update task" : "Failed to create task");
     } finally {
       setSubmitting(false);
-      toast.success("Task added successfully!");
-    setShowForm(false);
+      setShowForm(false);
+    }
   };
 
   const toggleTaskCompletion = async (id) => {
@@ -198,11 +199,11 @@ const MainFeature = ({ activeTab }) => {
       toast.info(`Task marked as ${newStatus ? 'completed' : 'incomplete'}`);
     } catch (error) {
       console.error("Failed to update task status:", error);
-      toast.error("Failed to update task status");
+      toast.error("Failed to update task status");  
     } finally {
       setLoadingAction(false);
     }
-    toast.info(`Task marked as ${newStatus ? 'completed' : 'incomplete'}`);
+    
   };
 
   const handleDeleteTask = async (id) => {
@@ -220,8 +221,7 @@ const MainFeature = ({ activeTab }) => {
       toast.error("Failed to delete task");
     } finally {
       setLoadingAction(false);
-    }
-    toast.success("Task deleted successfully!");
+    }    
   };
 
   // Start editing a task
@@ -411,17 +411,32 @@ const MainFeature = ({ activeTab }) => {
                 </button>
               </div>
             </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Loading state */}
       {loading ? (
-        <div className="py-10 text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          <p className="mt-3 text-surface-600 dark:text-surface-400">Loading tasks...</p>
+        /* Tasks list */
+        <div className="space-y-3">
+          <AnimatePresence mode="wait">
+            {filteredTasks.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="p-8 text-center"
+              >
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                <p className="mt-3 text-surface-600 dark:text-surface-400">Loading tasks...</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       ) : error ? (
-      {/* Tasks list */}
-      <div className="space-y-3">
-        <AnimatePresence>
-          {filteredTasks.length === 0 ? (
+        /* Error state */
+        <div className="space-y-3">
+          <AnimatePresence mode="wait">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -444,8 +459,10 @@ const MainFeature = ({ activeTab }) => {
                 Retry
               </button>
             </motion.div>
+          </AnimatePresence>
+        </div>
       ) : (
-        /* Tasks list */
+        /* Task list */
         <div className="space-y-3">
           <AnimatePresence mode="wait">
             {filteredTasks.length === 0 ? (
@@ -468,8 +485,8 @@ const MainFeature = ({ activeTab }) => {
                     ? "Create your first task to get started"
                     : "Complete some tasks to see them here"}
                 </p>
-            </motion.div>
-          ) : (
+              </motion.div>
+            ) : (
             filteredTasks.map((task) => (
               <motion.div
                 key={task.id}
@@ -543,9 +560,9 @@ const MainFeature = ({ activeTab }) => {
                 </div>
               </motion.div>
             ))
-    )}
+            )}
           )}
-        </AnimatePresence>
+        </div>
       </div>
     </div>
   );
