@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'react-toastify';
-import { format } from 'date-fns';
+import { toast } from 'react-toastify'; 
+import { format, parseISO } from 'date-fns';
 import { getIcon } from '../utils/iconUtils';
+import { fetchTasks, createTask, updateTask, deleteTask } from '../services/taskService';
 
 // Import required icons
 const PlusIcon = getIcon('plus');
@@ -16,35 +17,21 @@ const ChevronUpIcon = getIcon('chevron-up');
 const FlagIcon = getIcon('flag');
 
 const MainFeature = ({ activeTab }) => {
-  // Get tasks from localStorage or use default tasks
-  const [tasks, setTasks] = useState(() => {
-    const savedTasks = localStorage.getItem('tasks');
-    if (savedTasks) {
-      return JSON.parse(savedTasks);
-    }
-    return [
-      {
-        id: 1,
-        title: 'Complete the project proposal',
-        description: 'Write up the initial draft for the client meeting',
-        completed: false,
-        createdAt: new Date().toISOString(),
-        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-        priority: 'high',
-      },
-      {
-        id: 2,
-        title: 'Schedule team meeting',
-        description: 'Discuss project timeline and assign tasks',
-        completed: true,
-        createdAt: new Date().toISOString(),
-        dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
-        priority: 'medium',
-      },
-    ];
-  });
+  // State management
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState(false);
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Form state for new task
+  // Tagged tasks state
+  const [tags, setTags] = useState('');
+
+  // Track editing state
+  const [editingTask, setEditingTask] = useState(null);
+  const [isValidated, setIsValidated] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -52,21 +39,47 @@ const MainFeature = ({ activeTab }) => {
     priority: 'medium',
   });
   
-  // Track editing state
-  const [editingTask, setEditingTask] = useState(null);
-  const [isValidated, setIsValidated] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  
   // Filter for displaying tasks based on active tab
-  const filteredTasks = tasks.filter(task => {
-    if (activeTab === 'all') return true;
-    if (activeTab === 'completed') return task.completed;
-    return true;
-  });
+  const filteredTasks = tasks; // Server filtering is handled in fetchTasksFromServer
 
-  // Save tasks to localStorage whenever they change
+  // Fetch tasks from the server when component mounts or activeTab changes
   useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
+    const fetchTasksFromServer = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Apply filters based on activeTab
+        const options = {};
+        
+        if (activeTab === 'completed') {
+          options.completed = true;
+        }
+        
+        // Fetch tasks with filters
+        const data = await fetchTasks(options);
+        
+        // Transform the data format to match component expectations
+        const formattedTasks = data.map(task => ({
+          id: task.Id,
+          title: task.title,
+          description: task.description,
+          completed: task.completed,
+          createdAt: task.CreatedOn,
+          dueDate: task.dueDate,
+          priority: task.priority
+        }));
+        
+        setTasks(formattedTasks);
+      } catch (err) {
+        setError("Failed to load tasks. Please try again.");
+        toast.error("Failed to load tasks. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTasksFromServer();
   }, [tasks]);
 
   // Handle input changes for the task form
@@ -80,76 +93,134 @@ const MainFeature = ({ activeTab }) => {
 
   // Add a new task or update an existing one
   const handleSubmit = (e) => {
+    setSubmitting(true);
     e.preventDefault();
     
     // Form validation
     if (!formData.title.trim()) {
       setIsValidated(false);
+      setSubmitting(false);
       toast.error("Task title is required!");
       return;
     }
-    
-    if (editingTask) {
-      // Update existing task
-      const updatedTasks = tasks.map(task => 
-        task.id === editingTask.id ? {
-          ...task,
+    try {
+      if (editingTask) {
+        // Update existing task
+        const taskData = {
           title: formData.title,
           description: formData.description,
           dueDate: new Date(formData.dueDate).toISOString(),
-          priority: formData.priority
-        } : task
-      );
+          priority: formData.priority,
+          completed: editingTask.completed,
+          tags: tags,
+        };
+        
+        await updateTask(editingTask.id, taskData);
+        
+        // Update local state
+        const updatedTasks = tasks.map(task => 
+          task.id === editingTask.id ? {
+            ...task,
+            title: formData.title,
+            description: formData.description,
+            dueDate: new Date(formData.dueDate).toISOString(),
+            priority: formData.priority
+          } : task
+        );
+        
+        setTasks(updatedTasks);
+        toast.success("Task updated successfully!");
+        setEditingTask(null);
+      } else {
+        // Add new task
+        const taskData = {
+          title: formData.title,
+          description: formData.description,
+          dueDate: new Date(formData.dueDate).toISOString(),
+          priority: formData.priority,
+          tags: tags
+        };
+        
+        const newTaskData = await createTask(taskData);
+        
+        // Format the returned task to match component structure
+        const newTask = {
+          id: newTaskData.Id,
+          title: newTaskData.title,
+          description: newTaskData.description,
+          completed: newTaskData.completed,
+          createdAt: newTaskData.CreatedOn,
+          dueDate: newTaskData.dueDate,
+          priority: newTaskData.priority
+        };
+        
+        setTasks([...tasks, newTask]);
+        toast.success("Task added successfully!");
+      }
       
-      setTasks(updatedTasks);
-      toast.success("Task updated successfully!");
-      setEditingTask(null);
-    } else {
-      // Add new task
-      const newTask = {
-        id: Date.now(),
-        title: formData.title,
-        description: formData.description,
-        completed: false,
-        createdAt: new Date().toISOString(),
-        dueDate: new Date(formData.dueDate).toISOString(),
-        priority: formData.priority
-      };
-      
-      setTasks([...tasks, newTask]);
+      // Reset form
+      setFormData({
+        title: '',
+        description: '',
+        dueDate: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+        priority: 'medium'
+      });
+      setTags('');
+      setIsValidated(true);
+      setShowForm(false);
+    } catch (error) {
+      console.error("Task operation failed:", error);
+      toast.error(editingTask ? "Failed to update task" : "Failed to create task");
+    } finally {
+      setSubmitting(false);
       toast.success("Task added successfully!");
-    }
-    
-    // Reset form
-    setFormData({
-      title: '',
-      description: '',
-      dueDate: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-      priority: 'medium'
-    });
-    
-    setIsValidated(true);
     setShowForm(false);
   };
 
-  // Mark a task as complete or incomplete
-  const toggleTaskCompletion = (id) => {
-    const updatedTasks = tasks.map(task =>
-      task.id === id ? { ...task, completed: !task.completed } : task
-    );
-    
-    setTasks(updatedTasks);
-    
-    const task = tasks.find(t => t.id === id);
-    const newStatus = !task.completed;
-    
+  const toggleTaskCompletion = async (id) => {
+    setLoadingAction(true);
+    try {
+      const task = tasks.find(t => t.id === id);
+      const newStatus = !task.completed;
+      
+      // Update task completion status
+      await updateTask(id, {
+        ...task,
+        completed: newStatus
+      });
+      
+      // Update local state
+      const updatedTasks = tasks.map(task =>
+        task.id === id ? { ...task, completed: newStatus } : task
+      );
+      
+      setTasks(updatedTasks);
+      toast.info(`Task marked as ${newStatus ? 'completed' : 'incomplete'}`);
+    } catch (error) {
+      console.error("Failed to update task status:", error);
+      toast.error("Failed to update task status");
+    } finally {
+      setLoadingAction(false);
+    }
     toast.info(`Task marked as ${newStatus ? 'completed' : 'incomplete'}`);
   };
 
-  // Delete a task
-  const deleteTask = (id) => {
-    const updatedTasks = tasks.filter(task => task.id !== id);
-    setTasks(updatedTasks);
+  const handleDeleteTask = async (id) => {
+    setLoadingAction(true);
+    try {
+      // Delete task from server
+      await deleteTask(id);
+      
+      // Update local state
+      const updatedTasks = tasks.filter(task => task.id !== id);
+      setTasks(updatedTasks);
+      toast.success("Task deleted successfully!");
+    } catch (error) {
+      console.error("Failed to delete task:", error);
+      toast.error("Failed to delete task");
+    } finally {
+      setLoadingAction(false);
+    }
     toast.success("Task deleted successfully!");
   };
 
@@ -209,7 +280,7 @@ const MainFeature = ({ activeTab }) => {
       </motion.button>
 
       {/* Task form */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {showForm && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
@@ -244,12 +315,25 @@ const MainFeature = ({ activeTab }) => {
               </div>
               
               <div className="mb-4">
+                  <label className="block text-surface-700 dark:text-surface-300 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    className="input min-h-[80px]"
+                    placeholder="Enter task description"
+                  />
+              </div>
+              
+              <div className="mb-4">
                 <label className="block text-surface-700 dark:text-surface-300 mb-2">
-                  Description
+                  Tags (comma separated)
                 </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
+                <input
+                  type="text"
+                  value={tags}
                   onChange={handleInputChange}
                   className="input min-h-[80px]"
                   placeholder="Enter task description"
@@ -317,6 +401,9 @@ const MainFeature = ({ activeTab }) => {
                   }}
                   className="btn btn-outline"
                 >
+                  {submitting && (
+                    <span className="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                  )}
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
@@ -324,10 +411,13 @@ const MainFeature = ({ activeTab }) => {
                 </button>
               </div>
             </form>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+      {/* Loading state */}
+      {loading ? (
+        <div className="py-10 text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="mt-3 text-surface-600 dark:text-surface-400">Loading tasks...</p>
+        </div>
+      ) : error ? (
       {/* Tasks list */}
       <div className="space-y-3">
         <AnimatePresence>
@@ -339,18 +429,45 @@ const MainFeature = ({ activeTab }) => {
               className="p-8 text-center"
             >
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-surface-100 dark:bg-surface-700 flex items-center justify-center">
-                <ListTodoIcon className="w-8 h-8 text-surface-400" />
+                <AlertCircleIcon className="w-8 h-8 text-red-500" />
               </div>
               <h3 className="text-lg font-medium text-surface-600 dark:text-surface-300">
-                {activeTab === 'all' 
-                  ? "No tasks yet" 
-                  : "No completed tasks"}
+                Failed to load tasks
               </h3>
-              <p className="text-surface-500 mt-2">
-                {activeTab === 'all'
-                  ? "Create your first task to get started"
-                  : "Complete some tasks to see them here"}
+              <p className="text-surface-500 mt-2 mb-4">
+                {error}
               </p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="btn btn-primary"
+              >
+                Retry
+              </button>
+            </motion.div>
+      ) : (
+        /* Tasks list */
+        <div className="space-y-3">
+          <AnimatePresence mode="wait">
+            {filteredTasks.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="p-8 text-center"
+              >
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-surface-100 dark:bg-surface-700 flex items-center justify-center">
+                  <ListTodoIcon className="w-8 h-8 text-surface-400" />
+                </div>
+                <h3 className="text-lg font-medium text-surface-600 dark:text-surface-300">
+                  {activeTab === 'all' 
+                    ? "No tasks yet" 
+                    : "No completed tasks"}
+                </h3>
+                <p className="text-surface-500 mt-2">
+                  {activeTab === 'all'
+                    ? "Create your first task to get started"
+                    : "Complete some tasks to see them here"}
+                </p>
             </motion.div>
           ) : (
             filteredTasks.map((task) => (
@@ -366,7 +483,8 @@ const MainFeature = ({ activeTab }) => {
                 <div className="flex items-start">
                   <button
                     onClick={() => toggleTaskCompletion(task.id)}
-                    className={`flex-shrink-0 w-6 h-6 rounded-full border ${
+                    disabled={loadingAction}
+                    className={`flex-shrink-0 w-6 h-6 rounded-full border transition-colors ${
                       task.completed
                         ? 'bg-green-500 border-green-500 dark:bg-green-600 dark:border-green-600'
                         : 'border-surface-300 dark:border-surface-600'
@@ -415,7 +533,7 @@ const MainFeature = ({ activeTab }) => {
                       <EditIcon className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => deleteTask(task.id)}
+                      onClick={() => handleDeleteTask(task.id)}
                       className="p-1.5 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-surface-500 hover:text-red-600 dark:text-surface-400 dark:hover:text-red-400 transition-colors"
                       aria-label="Delete task"
                     >
@@ -425,6 +543,7 @@ const MainFeature = ({ activeTab }) => {
                 </div>
               </motion.div>
             ))
+    )}
           )}
         </AnimatePresence>
       </div>
