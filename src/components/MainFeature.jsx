@@ -564,7 +564,6 @@ const MainFeature = ({ activeTab }) => {
             )}
           </AnimatePresence>
         </div>
-      </div>
     </div>
   );
 };
