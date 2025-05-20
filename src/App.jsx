@@ -149,7 +149,6 @@ function App() {
                 TaskFlow
               </h1>
             </div>
-  };
             <div className="flex items-center space-x-2">
               {isAuthenticated && (
                 <button
