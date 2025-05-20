@@ -197,8 +197,8 @@ function App() {
           theme={darkMode ? "dark" : "light"}
           toastClassName="rounded-lg shadow-md"
         />
-      </AuthContext.Provider>
       </div>
+      </AuthContext.Provider>
   );
 }
 
