@@ -104,6 +104,17 @@ function App() {
     localStorage.setItem('darkMode', darkMode);
     if (darkMode) {
       document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  // Toggle dark mode function
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
+
+  // Authentication methods to share via context
   // Authentication methods to share via context
   const authMethods = {
     isInitialized,
@@ -120,7 +131,12 @@ function App() {
       }
     }
   };
+  // Don't render routes until initialization is complete
+  if (!isInitialized) {
+    return <div className="loading">Initializing application...</div>;
+  }
 
+  return (
     } else {
     <AuthContext.Provider value={authMethods}>
       <div className="App min-h-screen flex flex-col">
@@ -132,7 +148,7 @@ function App() {
               </div>
               <h1 className="text-xl md:text-2xl font-bold text-surface-800 dark:text-surface-50">
                 TaskFlow
-              </h1>
+            </div>
   };
             <div className="flex items-center space-x-2">
               {isAuthenticated && (
@@ -150,9 +166,8 @@ function App() {
               >
                 {darkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
               </button>
-            </div>
+           </div>
       <header className="bg-white dark:bg-surface-800 shadow-sm">
-        </header>
           <button
         <main className="flex-grow container mx-auto px-4 py-6">
           <Routes>
@@ -163,7 +178,6 @@ function App() {
             <Route path="/" element={isAuthenticated ? <Home /> : <Login />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </main>
         </div>
         <footer className="bg-white dark:bg-surface-800 border-t border-surface-200 dark:border-surface-700 py-4">
           <div className="container mx-auto px-4">
@@ -171,7 +185,6 @@ function App() {
               &copy; {new Date().getFullYear()} TaskFlow. All rights reserved.
             </p>
           </div>
-        </footer>
       </main>
         <ToastContainer
           position="bottom-right"
@@ -187,15 +200,6 @@ function App() {
           toastClassName="rounded-lg shadow-md"
         />
       </div>
-    </AuthContext.Provider>
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme={darkMode ? "dark" : "light"}
-        toastClassName="rounded-lg shadow-md"
-      />
     </div>
   );
 }
