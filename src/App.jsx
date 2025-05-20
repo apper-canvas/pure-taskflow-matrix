@@ -137,7 +137,6 @@ function App() {
   }
 
   return (
-    } else {
     <AuthContext.Provider value={authMethods}>
       <div className="App min-h-screen flex flex-col">
         <header className="bg-white dark:bg-surface-800 shadow-sm">
@@ -148,6 +147,7 @@ function App() {
               </div>
               <h1 className="text-xl md:text-2xl font-bold text-surface-800 dark:text-surface-50">
                 TaskFlow
+              </h1>
             </div>
   };
             <div className="flex items-center space-x-2">
@@ -166,9 +166,9 @@ function App() {
               >
                 {darkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
               </button>
-           </div>
-      <header className="bg-white dark:bg-surface-800 shadow-sm">
-          <button
+            </div>
+          </div>
+        </header>
         <main className="flex-grow container mx-auto px-4 py-6">
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -178,14 +178,14 @@ function App() {
             <Route path="/" element={isAuthenticated ? <Home /> : <Login />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </div>
+        </main>
         <footer className="bg-white dark:bg-surface-800 border-t border-surface-200 dark:border-surface-700 py-4">
           <div className="container mx-auto px-4">
             <p className="text-center text-surface-500 dark:text-surface-400 text-sm">
               &copy; {new Date().getFullYear()} TaskFlow. All rights reserved.
             </p>
           </div>
-      </main>
+        </footer>
         <ToastContainer
           position="bottom-right"
           autoClose={3000}
@@ -200,7 +200,6 @@ function App() {
           toastClassName="rounded-lg shadow-md"
         />
       </div>
-    </div>
   );
 }
 
