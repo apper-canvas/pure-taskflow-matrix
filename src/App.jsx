@@ -115,7 +115,6 @@ function App() {
   };
 
   // Authentication methods to share via context
-  // Authentication methods to share via context
   const authMethods = {
     isInitialized,
     logout: async () => {
@@ -198,6 +197,7 @@ function App() {
           theme={darkMode ? "dark" : "light"}
           toastClassName="rounded-lg shadow-md"
         />
+      </AuthContext.Provider>
       </div>
   );
 }
